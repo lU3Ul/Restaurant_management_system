@@ -1,8 +1,10 @@
 # Self-Studied Data Structure & Algorithm
 
+## Introduce video link:https://www.bilibili.com/video/BV1MrdeBUEm8?spm_id_from=333.788.recommend_more_video.-1&trackid=web_related_0.router-related-2479604-dplt2.1776397202270.502&vd_source=d2c03edd984ad00ccbcdfc20b7acf764
+
 ## 1. How to Run
 
-1. Ensure Python 3.7+ is installed.
+1. Ensure Python 3.7+ is insstalled.
 2. Run the demo:
    ```bash
    python heap_demo.py
