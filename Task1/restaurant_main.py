@@ -6,9 +6,9 @@ import os
 '''
 To store all ratings permanently
 we use JSON, taht can store all data after the program exits.
-But we don't complete the related independently,
+But we don't complete the related code independently,
 We refer from online tutorials and the official Python documentation.
-all rating data is stored in ratings.json
+All rating data is stored in ratings.json
 '''
 
 #name the json file
