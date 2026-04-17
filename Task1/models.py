@@ -6,6 +6,7 @@ class MenuItem(ABC):
         self.__name = name          # private attribute
         self.__price = price
         self.__description = description
+        self.__ratings = []
 
     @property
     def name(self) -> str:
@@ -27,6 +28,20 @@ class MenuItem(ABC):
     def __str__(self) -> str:
         return f"{self.__name} (${self.__price:.2f}) - {self.__description}"
 
+    def get_average_rating(self):
+        if not self.__ratings:
+            return None
+        return sum(self.__ratings)/len(self.__ratings)
+
+    def add_rating(self,score:float):
+        if 1<=score<=10:
+            self.__ratings.append(score)
+
+    def get_ratings(self):
+        return self.__ratings.copy()
+        """read only"""
+    def set_ratings(self,ratings_list):
+        self.__ratings=ratings_list[:]
 
 class Food(MenuItem):
     """Food item, inherits from MenuItem."""
@@ -43,7 +58,6 @@ class Food(MenuItem):
 
     def __str__(self) -> str:
         return super().__str__() + f" [Spiciness: {self.__spiciness}]"
-
 
 class Drink(MenuItem):
     """Drink item."""
@@ -170,9 +184,14 @@ class Order:
         return self.__customer.apply_discount(total)
 
     def __str__(self) -> str:
-        item_names = ", ".join([item.name for item in self.__items])
+        items_list=[]
+        for i in range (len(self.__items)):
+            item=self.__items[i]
+            items_list.append(f"{i+1}.{item.name} ${item.price:.2f}")
+        items_display="\n".join(items_list)
+            
         return (f"Order {self.__order_id}\nCustomer: {self.__customer.name}\n"
-                f"Status: {self.__status}\nItems: [{item_names}]\n"
+                f"Status: {self.__status}\nItems: [{items_display}]\n"
                 f"Subtotal: ${self.calculate_total():.2f}")
 
 

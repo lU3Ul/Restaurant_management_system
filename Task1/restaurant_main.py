@@ -1,5 +1,18 @@
 from models import MenuItem, Food, Drink, Dessert, User, VIPUser, Order
 from services import PriorityQueue, heap_sort, Restaurant, Payment
+import json
+import os
+
+'''
+To store all ratings permanently
+we use JSON, taht can store all data after the program exits.
+But we don't complete the related independently,
+We refer from online tutorials and the official Python documentation.
+all rating data is stored in ratings.json
+'''
+
+#name the json file
+RATINGS_FILE = "ratings.json"
 
 
 #store global variables
@@ -38,6 +51,7 @@ def select_page():
         elif enter_code=='444':
             chef_page()
         elif enter_code=='0':
+            save_all_ratings()
             print('\nThank you for using system.')
             break
         else:
@@ -65,11 +79,12 @@ def order_page():
     while True:
         print('============= Welcome to the order system ===============\n')
         print('   [1]View Menu')
-        print('   [2]Add Dishes)')
+        print('   [2]Add Dishes')
         print('   [3]Remove Dishes')
         print('   [4]View Current Order')
         print('   [5]Search Dishes')
-        print('   [6]Checkout&Pay')
+        print('   [6]Menu of the rating order')
+        print('   [7]Checkout&Pay')
         print('   [0]Back to Main')
         print('\n=============== Welcome to the Restaurant! ===============')
         
@@ -86,6 +101,8 @@ def order_page():
         elif choice=='5':
             search_dishes()
         elif choice=='6':
+            display_menu_sorted()
+        elif choice=='7':
             success=checkout()
             if success:
                 break
@@ -149,17 +166,21 @@ def view_current_order():
     #Polymorphism:different discount for VIPUser and ordinary User
 
 def search_dishes():
-    keyword=input('Enter search keyword:').strip().lower()
-    #List comprehension filter
-    result=[item for item in restaurant.menu if keyword in item.name.lower()]
-    if result:
-        print(f"\nFound {len(result)} items:")
-        for item in result:
-            print(f"{item}")
-    else:
+    keyword = input('Enter search keyword:').strip().lower()
+    found = False
+    for i in range(len(restaurant.menu)):
+        item = restaurant.menu[i]
+        if keyword in item.name.lower():
+            print(f"{i+1}. {item}")
+            found = True
+    if not found:
         print("No items found.")
 
 def checkout():
+    if not current_order.items:
+        print("\nYou orderd nothing")
+        input("Press enter return the menu...")
+        return False
     view_current_order()
     total = current_order.apply_discount()
     print(f'\nTotal to pay is ${total:.2f}')
@@ -169,6 +190,7 @@ def checkout():
         #Static method call
         if change >= 0:
             print('Payment successful!Thank you!')
+            rate_dishes(current_order)
             input('\nPress enter to return to main menu.')
             return True
         else:
@@ -179,26 +201,144 @@ def checkout():
         print('Invalid amount!')
         input('\nPress enter to continue...')
         return False
+
+def display_menu_sorted():
+    print("===============Rated menu===============\n")
+    items_rating = []
+    for i in range(len(restaurant.menu)):
+        item = restaurant.menu[i]
+        rating = item.get_average_rating() or 0
+        items_rating.append((rating, i, item))
         
+    sorted_pairs = heap_sort(items_rating)
+    sorted_pairs.reverse() #make high-mark dish in the front
+    sorted_menu = []
+    for rating, i, item in sorted_pairs:
+        sorted_menu.append(item)
     
-#Only a simple example,will be improved later.
+    for i in range(len(sorted_menu)):
+        item=sorted_menu[i]
+        average_rating=item.get_average_rating()
+        if average_rating is None:
+            rating_mark="No Rate yet"
+        else:
+            rating_mark=f"{average_rating:.1f}/10"
+        
+        print(f"{i+1}.{item.name} ${item.price:.2f} >>>Rating:{rating_mark}")
+    print("\n===============Rated menu===============")
+
+
+def rate_dishes(order):
+    
+    print("\n===============Rating Dishes===============\n")
+    print("Your feedback helps us do better!")
+    for i in range(len(order.items)):
+        dish=order.items[i]
+        print(f"{i+1}.{dish.name}")
+    print("Enter the number of the dish you want to rate.(or 0 to exit)\n")
+    #use two loops to ensure the value user input is valid
+    while True:
+        rate_num=int(input("The number of dish(or 0 to exit):"))
+        if rate_num==0:
+            break
+        if 1<=rate_num<=len(order.items):
+            dish=order.items[rate_num-1]
+            while True:
+                score=float(input("You mark of the is(1-10):"))
+                if 1<=score<=10:
+                    dish.add_rating(score)
+                    print("Thank you for your rating!")
+                    save_all_ratings()
+                    #save ratings to the file
+                    break
+                else:
+                    print("The score should between 1-10.Please enter again.")
+        else:
+            print("Please enter the right number of the dishes.")
+
+
+def load_ratings():
+    if not os.path.exists(RATINGS_FILE):
+        return {}
+    #open json file, read only
+    with open(RATINGS_FILE,'r',encoding='utf-8') as f:
+        try:
+            data=json.load(f)
+            return data
+        except json.JSONDecodeError:
+            return {}
+
+def save_ratings(ratings_dict):
+    #store ratings into json file
+    with open(RATINGS_FILE,'w',encoding='utf-8') as f:
+        json.dump(ratings_dict, f,indent=2, ensure_ascii=False)
+
+def save_all_ratings():
+    ratings_dict={}
+    for item in restaurant.menu:
+        ratings=item.get_ratings()
+        if ratings:
+            ratings_dict[item.name]=ratings
+    save_ratings(ratings_dict)
+    
+    
+
 def init_menu():
+    ratings_data=load_ratings()
     foods=[
-        Food("Kung Pao Chicken", 68.0, "Medium", "Sichuan classic")
+        Food("Kung Pao Chicken", 68.0, "Medium", "Sichuan classic"),
+        Food("Spaghetti Bologness", 58.0, "Medium", "Italian classic"),
+        Food("Filet Mignon", 128.0, "Medium", "Australian imported"),
+        Food("Seafood Pizza", 88.0, "spicy-free", "Turkish classic"),
+        Food("Turkish Kebab", 68.0, "Medium", "Turkish style"),
+        Food("Curry Beef Rice", 56.0, "Mild spicy", "Japanese style curry rice")
         ]
     drink=[
-        Drink("Cola", 12.0, 330, "Iced")
+        Drink("Cola", 12.0, 330, "Iced"),
+        Drink("Sprite", 12.0, 330, "Iced"),
+        Drink("Latte", 22.0, 300, "Iced/hot"),
+        Drink("Blue mountain coffee", 38.0, 250, "hot"),
+        Drink("Black Tea", 15.0, 450, "Iced/hot"),
+        Drink("Vodka", 350.0, 400, "Iced"),
+        Drink("Red wine", 88.0, 300, "Iced"),
+        Drink("Mojito", 58.0, 350, "Iced")
+        
         ]
     dessert=[
-        Dessert("Tiramisu", 38.0, "Normal", "Italian dessert")
+        Dessert("Tiramisu", 38.0, "Normal", "Italian dessert"),
+        Dessert("Chocolate cake", 35.0, "Normal", "Belgian chocolate"),
+        Dessert("Cheesecake", 35.0, "Normal", "New York dessert"),
+        Dessert("Mango Pudding", 25.0, "Normal", "Fresh mango flavor"),
+        Dessert("Cream phff", 28.0, "Normal", "Cream filling"),
+        Dessert("Apple pie", 38.0, "Normal", "fresh apple flavor")        
         ]
     for item in foods+drink+dessert:
+        if item.name in ratings_data:
+            item.set_ratings(ratings_data[item.name])
         restaurant.add_menu_item(item)
         
         
         
 def staff_page():
-    print('=============== Staff System ===============')
+    while True:
+        print('=============== Staff System ===============\n')
+        print('   [1]View all Bills')
+        print('   [2]View the rate of dishes')
+        print('   [0]Back to Main')
+        print('\n=============== Staff System ===============')
+        choice=input('Enter the number before the instruction:').strip()
+        if choice=='1':
+            display_bills()
+        elif choice=='2':
+            display_ratings()
+        elif choice=='0':
+            print('Returning to main menu...')
+            break
+        else:
+            print('The number is incorrect,please enter correct number.')
+        
+def display_bills():
+    print('===============Bills system===============\n')
     if not restaurant.orders:
         print('No order yet.')
         return
@@ -211,7 +351,12 @@ def staff_page():
         total_revenue+=final
         print(f'Final Amount:${final:.2f}')
     print(f'\nTotal revenue:${total_revenue:.2f}')
-    
+    print('\n===============Bills system===============')
+
+def display_ratings():
+    display_menu_sorted()
+
+
 def chef_page():
     print('=============== Chef System ===============')
     print(f"\nPending Orders in Queue: {len(restaurant.order_queue)}")
@@ -221,6 +366,9 @@ def chef_page():
         #Heap-based priority processing
     else:
         print("No pending orders.")
+
+
+
 
 
 #Run code  
